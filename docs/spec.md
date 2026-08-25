@@ -1,6 +1,6 @@
 # Account health scoring
 
-**Status:** Draft
+**Status:** Approved
 
 ## What this does
 
@@ -26,8 +26,9 @@ account_id,month,seats_active,logins,tickets_open
 | `tickets_open` | Support tickets still open at the end of the month |
 
 The first line is the header shown above. `account_id`, `month`, `logins` and
-`tickets_open` are always present and never blank. Rows may appear in any order, and each account has at most one row per
-month.
+`tickets_open` are always present and never blank. `seats_active` may be blank,
+and a blank value is parsed as `0`. Rows may appear in any order, and each
+account has at most one row per month.
 
 ## The two halves
 
@@ -84,8 +85,10 @@ is floored at 0. It never goes negative.
 rules appear in the table above. An account with no rules fired has an empty
 `reasons` list.
 
-The seat-decline rule needs at least two months to compare. An account with only
-one month in the export does not fire it, and cannot lose those 4 points.
+The seat-decline rule needs at least two months to compare. Compare the latest
+month's seat count to the immediately preceding month present for that account.
+An account with only one month in the export does not fire it, and cannot lose
+those 4 points.
 
 ## Tiers
 
@@ -95,8 +98,7 @@ one month in the export does not fire it, and cannot lose those 4 points.
 | `MEDIUM` | 5–7 |
 | `AT RISK` | 0–4 |
 
-Any account scoring 5 or below should be surfaced to CS as at risk, so the
-weekly digest is built from that set.
+Any account scoring 4 or below is in the AT RISK tier.
 
 ## Out of scope
 
@@ -107,6 +109,9 @@ produces the score and nothing else.
 
 | ID | Rule a builder follows | Passage it resolves | Case that would differ |
 | --- | --- | --- | --- |
+| D01 | Compare the latest month's seats to the immediately preceding month present for that account. | The latest month's seat count has fallen by 40% or more | globex (2026-01: 4, 2026-02: 10, 2026-03: 6) fires because 10 to 6 is a 40% drop, rather than comparing against 2026-01 where seats increased. |
+| D02 | Parse a blank seats_active value as 0. | The first line is the header shown above. account_id, month, logins and tickets_open are always present and never blank. | acme (2026-03,,5,0) parses seats_active as 0 and falls from 8 to 0, firing seats down sharply and scoring 6, rather than omitting the month or keeping 8 seats. |
+| D03 | A score of 5 is in the MEDIUM tier. | Any account scoring 5 or below should be surfaced to CS as at risk | initech (2026-02 scores 5) is placed in MEDIUM rather than AT RISK. |
 
 ## Open questions
 
